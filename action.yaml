@@ -13,8 +13,8 @@ inputs:
     description: 'Path to the requirements.txt file. If empty, will look for requirements.txt in the same directory as pyproject.toml'
     required: false
     default: ''
-  requirements-command:
-    description: 'Complete uv command to generate requirements.txt (e.g., "uv pip compile --python-platform=linux pyproject.toml -o requirements-linux.txt")'
+  command:
+    description: 'uv command to run for validation (e.g., "uv sync" for lock files, "uv pip compile pyproject.toml -o requirements.txt" for requirements)'
     required: false
     default: 'uv sync'
   run-sync:
@@ -32,7 +32,7 @@ runs:
           echo "Error: pyproject.toml not found at ${{ inputs.pyproject-path }}"
           exit 1
         fi
-        PYTHON_VERSION=$(grep -m 1 'requires-python' "${{ inputs.pyproject-path }}" | sed -E 's/.*>=([0-9]+\.[0-9]+).*/\1/')
+        PYTHON_VERSION=$(grep -m 1 'requires-python' "${{ inputs.pyproject-path }}" | grep -oE '[0-9]+\.[0-9]+')
         if [ -z "$PYTHON_VERSION" ]; then
           echo "Error: Could not find Python version in ${{ inputs.pyproject-path }}"
           exit 1
@@ -48,7 +48,7 @@ runs:
         fi
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
@@ -65,12 +65,12 @@ runs:
       run: |
         uv sync
         if [ -f "${{ env.REQUIREMENTS_PATH }}" ]; then
-          ${{ inputs.requirements-command }}
+          ${{ inputs.command }}
         fi
 
     - name: Verify files
       shell: bash
       working-directory: ${{ env.PYPROJECT_DIR }}
       env:
-        SYNC_COMMAND: ${{ inputs.requirements-command }}
+        COMMAND: ${{ inputs.command }}
       run: $GITHUB_ACTION_PATH/verify.sh
